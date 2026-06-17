@@ -1,5 +1,5 @@
 // logger.js
-const SERVER_URL = 'https://logger-eight-sooty.vercel.app/'; // change this
+const SERVER_URL = 'https://logger-eight-sooty.vercel.app';
 
 const Logger = {
   _send: async (level, message, extra = {}) => {
