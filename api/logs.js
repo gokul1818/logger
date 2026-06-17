@@ -1,4 +1,4 @@
-const { kv } = require('@vercel/kv');
+const { Redis } = require('@upstash/redis');
 
 const MAX_LOGS = 500;
 
@@ -9,28 +9,33 @@ module.exports = async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
+  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
     return res.status(500).json({
-      error: 'KV store not connected. Go to your Vercel project → Storage → Create KV Database → Connect to project, then redeploy.',
+      error: 'Missing UPSTASH_REDIS_REST_URL or UPSTASH_REDIS_REST_TOKEN env vars.',
     });
   }
 
+  const redis = new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN,
+  });
+
   try {
     if (req.method === 'GET') {
-      const logs = (await kv.get('logs')) || [];
+      const logs = (await redis.get('logs')) || [];
       return res.json(logs);
     }
 
     if (req.method === 'POST') {
-      const logs = (await kv.get('logs')) || [];
+      const logs = (await redis.get('logs')) || [];
       logs.unshift(req.body);
       if (logs.length > MAX_LOGS) logs.splice(MAX_LOGS);
-      await kv.set('logs', logs);
+      await redis.set('logs', logs);
       return res.json({ ok: true });
     }
 
     if (req.method === 'DELETE') {
-      await kv.set('logs', []);
+      await redis.set('logs', []);
       return res.json({ ok: true });
     }
 
