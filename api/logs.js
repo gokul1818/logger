@@ -1,19 +1,23 @@
 const MAX_LOGS = 500;
 
-async function kvGet(url, token, key) {
-  const res = await fetch(`${url}/get/${key}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  const data = await res.json();
-  return data.result ? JSON.parse(data.result) : null;
-}
-
-async function kvSet(url, token, key, value) {
-  await fetch(`${url}/set/${key}`, {
+async function upstash(url, token, ...args) {
+  const res = await fetch(url, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ value: JSON.stringify(value) }),
+    body: JSON.stringify(args),
   });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error);
+  return data.result;
+}
+
+async function getLogs(url, token) {
+  const raw = await upstash(url, token, 'GET', 'logs');
+  return raw ? JSON.parse(raw) : [];
+}
+
+async function setLogs(url, token, logs) {
+  await upstash(url, token, 'SET', 'logs', JSON.stringify(logs));
 }
 
 module.exports = async function handler(req, res) {
@@ -32,20 +36,19 @@ module.exports = async function handler(req, res) {
 
   try {
     if (req.method === 'GET') {
-      const logs = (await kvGet(url, token, 'logs')) || [];
-      return res.json(logs);
+      return res.json(await getLogs(url, token));
     }
 
     if (req.method === 'POST') {
-      const logs = (await kvGet(url, token, 'logs')) || [];
+      const logs = await getLogs(url, token);
       logs.unshift(req.body);
       if (logs.length > MAX_LOGS) logs.splice(MAX_LOGS);
-      await kvSet(url, token, 'logs', logs);
+      await setLogs(url, token, logs);
       return res.json({ ok: true });
     }
 
     if (req.method === 'DELETE') {
-      await kvSet(url, token, 'logs', []);
+      await setLogs(url, token, []);
       return res.json({ ok: true });
     }
 
