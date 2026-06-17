@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>App Logs</title>
+  <style>
+    body { font-family: monospace; background: #1e1e1e; color: #ddd; padding: 20px; }
+    h1 { color: #fff; }
+    .controls { margin-bottom: 16px; display: flex; gap: 10px; align-items: center; }
+    button { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
+    #refreshBtn { background: #4caf50; color: white; }
+    #clearBtn { background: #e53935; color: white; }
+    #filter { padding: 8px; border-radius: 6px; border: 1px solid #555; background: #333; color: #fff; }
+    .log { padding: 8px 12px; margin: 4px 0; border-radius: 6px; font-size: 13px; }
+    .INFO  { background: #1a3a1a; border-left: 4px solid #4caf50; }
+    .WARN  { background: #3a2e00; border-left: 4px solid #ffc107; }
+    .ERROR { background: #3a0000; border-left: 4px solid #e53935; }
+    .DEBUG { background: #1a1a3a; border-left: 4px solid #2196f3; }
+    .time  { color: #888; margin-right: 8px; }
+    .level { font-weight: bold; margin-right: 8px; min-width: 50px; display: inline-block; }
+    .extra { color: #aaa; margin-top: 2px; font-size: 11px; }
+    #count { color: #888; }
+  </style>
+</head>
+<body>
+  <h1>📋 Mobile App Logs</h1>
+  <div class="controls">
+    <button id="refreshBtn" onclick="loadLogs()">🔄 Refresh</button>
+    <button id="clearBtn" onclick="clearLogs()">🗑️ Clear All</button>
+    <select id="filter" onchange="loadLogs()">
+      <option value="">All Levels</option>
+      <option value="INFO">INFO</option>
+      <option value="WARN">WARN</option>
+      <option value="ERROR">ERROR</option>
+      <option value="DEBUG">DEBUG</option>
+    </select>
+    <span id="count"></span>
+  </div>
+  <div id="logs"></div>
+
+  <script>
+    async function loadLogs() {
+      const res = await fetch('/api/logs');
+      let logs = await res.json();
+      const filter = document.getElementById('filter').value;
+      if (filter) logs = logs.filter(l => l.level === filter);
+      document.getElementById('count').textContent = `${logs.length} logs`;
+      document.getElementById('logs').innerHTML = logs.map(l => `
+        <div class="log ${l.level}">
+          <span class="time">${l.timestamp}</span>
+          <span class="level">${l.level}</span>
+          📱 ${l.device || ''}  —  ${l.message}
+          ${l.extra && Object.keys(l.extra).length ? `<div class="extra">${JSON.stringify(l.extra)}</div>` : ''}
+        </div>
+      `).join('');
+    }
+
+    async function clearLogs() {
+      if (!confirm('Clear all logs?')) return;
+      await fetch('/api/logs', { method: 'DELETE' });
+      loadLogs();
+    }
+
+    loadLogs();
+    setInterval(loadLogs, 5000);
+  </script>
+</body>
+</html>
